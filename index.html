@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Green Zone Slip</title>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#0a0f0c;--card:#121a15;--line:#1f2d24;--g:#00c853;--tx:#e8f2ec;--mu:#8aa095;--mtn:#ffcc00;--org:#ff7900}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,sans-serif}
+.w{max-width:480px;margin:0 auto;padding:14px}
+h1,h2,h3{margin:0 0 8px}a{color:var(--g)}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);max-width:480px;margin:0 auto}
+.logo{font-weight:800;font-size:18px}.logo b{color:var(--g)}
+.btn{background:var(--g);color:#04210f;border:0;border-radius:10px;padding:13px 16px;font-weight:700;font-size:15px;width:100%;cursor:pointer}
+.btn.s{width:auto;padding:8px 14px;font-size:13px}.btn.o{background:none;border:1px solid var(--g);color:var(--g)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+input,select,textarea{width:100%;background:#0d1410;border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:13px;font-size:16px;margin:6px 0}
+label{font-size:12px;color:var(--mu)}
+.hero{text-align:center;padding:26px 6px}.hero h1{font-size:28px}.hero p{color:var(--mu)}
+.plan{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.plan .p{font-size:20px;font-weight:800;color:var(--g)}.plan small{color:var(--mu);display:block}
+.tabs{display:flex;gap:8px}.tab{flex:1;text-align:center;padding:12px;border-radius:10px;border:2px solid var(--line);cursor:pointer;font-weight:700}
+.tab.on.mtn{border-color:var(--mtn);color:var(--mtn)}.tab.on.org{border-color:var(--org);color:var(--org)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.chip{padding:8px 14px;border-radius:20px;border:1px solid var(--line);cursor:pointer}
+.chip.on{background:var(--g);color:#04210f;border-color:var(--g);font-weight:700}
+.row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line)}.row:last-child{border:0}
+.cd{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--g)}
+.code{background:#0d1410;border:1px dashed var(--g);border-radius:10px;padding:12px;margin:8px 0;white-space:pre-wrap;font-family:ui-monospace,monospace}
+.sp{width:54px;height:54px;border:5px solid var(--line);border-top-color:var(--g);border-radius:50%;margin:18px auto;animation:r 1s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+.c{text-align:center}.mu{color:var(--mu);font-size:13px}.err{color:#ff6b6b;font-size:13px;min-height:18px}
+.nav{display:flex;gap:6px;margin:10px 0}.nav button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--tx);cursor:pointer}.nav .on{border-color:var(--g);color:var(--g)}
+.hid{display:none}
+</style></head><body>
+<header><div class="logo">⚽ GREEN <b>ZONE</b></div><div id="hr"></div></header>
+<div class="w" id="app"></div>
+<script>
+// ===== CONFIG =====
+var CFG={
+  plans:{daily:{n:"Daily Plan",d:"24 hours",p:500,ms:864e5},weekly:{n:"Weekly Plan",d:"7 days",p:2500,ms:6048e5},monthly:{n:"Monthly Plan",d:"30 days",p:5000,ms:2592e6}},
+  cur:"XAF", prefix:"+237",
+  adminPass:"changeme123",           // change this
+  payEndpoint:"/.netlify/functions/notchpay" // e.g. "/.netlify/functions/pay" once your Notch Pay function is deployed. Empty = demo mode
+};
+var $=function(i){return document.getElementById(i)},app=$("app"),S={},tick;
+function ld(k,f){try{var v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}}
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+var users=ld("gz_users",{}),me=ld("gz_me",null),subs=ld("gz_subs",{}),codes=ld("gz_codes",{daily:[],weekly:[],monthly:[]});
+function fmt(n){return n.toLocaleString()+" "+CFG.cur}
+function left(ms){if(ms<=0)return"00:00:00";var s=Math.floor(ms/1e3),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);s%=60;var z=function(x){return(x<10?"0":"")+x};return(d?d+"d ":"")+z(h)+":"+z(m)+":"+z(s)}
+function hdr(){$("hr").innerHTML=me?'<button class="btn s o" onclick="go(\'dash\')">Dashboard</button> <button class="btn s o" onclick="out()">Logout</button>':'<button class="btn s" onclick="go(\'login\')">Login</button>'}
+function out(){me=null;sv("gz_me",null);go("home")}
+function go(v,a){clearInterval(tick);hdr();window.scrollTo(0,0);V[v](a)}
+var V={};
+V.home=function(){
+  var h='<div class="hero"><h1>Get Today\'s <span style="color:var(--g)">Booking Codes</span></h1><p>Pick a plan, pay with MTN or Orange Money, and unlock the codes instantly.</p></div>';
+  for(var k in CFG.plans){var p=CFG.plans[k];h+='<div class="card plan" onclick="buy(\''+k+'\')"><div><b>'+p.n+'</b><small>'+p.d+' access</small></div><div class="p">'+fmt(p.p)+'</div></div>'}
+  h+='<button class="btn" onclick="go(\''+(me?'dash':'signup')+'\')">'+(me?'Go to Dashboard':'Create Account')+'</button>';
+  h+='<p class="mu c" style="margin-top:18px">18+ only. Betting involves risk and no code is guaranteed to win. Bet responsibly.</p>';
+  app.innerHTML=h};
+V.signup=function(){
+  app.innerHTML='<h2>Create account</h2><div class="card"><label>Full name</label><input id="n"><label>Phone number</label><input id="ph" type="tel" inputmode="numeric" placeholder="6XXXXXXXX"><label>Password</label><input id="pw" type="password"><div class="err" id="e"></div><button class="btn" onclick="reg()">Sign up</button></div><p class="c mu">Have an account? <a href="#" onclick="go(\'login\');return false">Login</a></p>'};
+V.login=function(){
+  app.innerHTML='<h2>Login</h2><div class="card"><label>Phone number</label><input id="ph" type="tel" inputmode="numeric"><label>Password</label><input id="pw" type="password"><div class="err" id="e"></div><button class="btn" onclick="log()">Login</button></div><p class="c mu">New here? <a href="#" onclick="go(\'signup\');return false">Create account</a> · <a href="#" onclick="go(\'admin\');return false">Admin</a></p>'};
+function reg(){var n=$("n").value.trim(),p=$("ph").value.replace(/\D/g,""),w=$("pw").value;
+  if(!n||p.length<8||w.length<4){$("e").textContent="Fill all fields (password 4+ chars).";return}
+  if(users[p]){$("e").textContent="Phone already registered.";return}
+  users[p]={n:n,w:w};sv("gz_users",users);me=p;sv("gz_me",me);go("dash")}
+function log(){var p=$("ph").value.replace(/\D/g,""),u=users[p];
+  if(!u||u.w!==$("pw").value){$("e").textContent="Wrong phone or password.";return}
+  me=p;sv("gz_me",me);go("dash")}
+
+// ===== PAYMENT (popup) =====
+var mo=null;
+function modal(h){if(!mo){mo=document.createElement("div");mo.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:50";mo.onclick=function(e){if(e.target===mo&&!S.busy)closeM()};document.body.appendChild(mo)}
+  mo.innerHTML='<div style="background:var(--card);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))">'+h+'</div>'}
+function closeM(){clearInterval(tick);S.busy=0;if(mo){mo.remove();mo=null}}
+function buy(k){if(!me){S.after=k;go("signup");return}S.plan=k;S.net=S.net||"mtn";payForm()}
+function payForm(msg){var p=CFG.plans[S.plan];
+  modal('<div class="row" style="border:0"><h3 style="margin:0">'+p.n+'</h3><b style="color:var(--g);font-size:20px">'+fmt(p.p)+'</b></div>'
+  +'<div class="tabs" style="margin:10px 0"><div class="tab mtn'+(S.net==="mtn"?' on':'')+'" onclick="S.net=\'mtn\';S.mp=$(\'mp\').value;payForm()">MTN MoMo</div><div class="tab org'+(S.net==="org"?' on':'')+'" onclick="S.net=\'org\';S.mp=$(\'mp\').value;payForm()">Orange Money</div></div>'
+  +'<label>Mobile money number</label><div style="display:flex;gap:6px"><input style="width:84px;text-align:center" value="'+CFG.prefix+'" disabled><input id="mp" type="tel" inputmode="numeric" placeholder="6XXXXXXXX" value="'+(S.mp||me||'')+'"></div><div class="err">'+(msg||'')+'</div>'
+  +'<button class="btn" onclick="startPay()">Pay Now</button><button class="btn o" style="margin-top:8px" onclick="closeM()">Cancel</button>')}
+function startPay(){var m=$("mp").value.replace(/\D/g,"");
+  if(m.length!==9||m[0]!=="6"){payForm("Enter a valid 9-digit number starting with 6.");return}
+  S.mp=m;S.busy=1;var p=CFG.plans[S.plan],t=90,plan=S.plan,done=false;
+  modal('<div class="c"><div class="sp"></div><h3>Check your phone to confirm</h3><p>Enter your MoMo PIN to pay <b>'+fmt(p.p)+'</b><br><span class="mu">'+CFG.prefix+' '+m+'</span></p><p class="mu"><span id="t">'+t+'</span>s</p></div>');
+  function fail(x){if(done)return;done=true;clearInterval(tick);S.busy=0;payForm(x)}
+  fetch(CFG.payEndpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone:CFG.prefix+m,network:S.net,plan:plan,user:me})})
+  .then(function(r){return r.json()}).then(function(d){
+    if(!d.reference){fail("Could not start payment. Try again.");return}
+    var busy=0;tick=setInterval(function(){t--;var e=$("t");if(e)e.textContent=t;
+      if(t<=0){fail("No confirmation received. Try again.");return}
+      if(t%2===0&&!busy){busy=1;fetch(CFG.payEndpoint+"?ref="+encodeURIComponent(d.reference)+"&plan="+plan+"&ts="+d.ts+"&token="+d.token).then(function(r){return r.json()}).then(function(s){busy=0;
+        if(s.status==="complete"&&!done&&!used(d.reference)){done=true;mark(d.reference);clearInterval(tick);S.busy=0;activate(plan,s.ms)}
+        else if(s.status==="failed")fail("Payment was declined or cancelled.")}).catch(function(){busy=0})}},1e3)})
+  .catch(function(){fail("Network error. Try again.")})}
+var UR=ld("gz_used",[]);function used(r){return UR.indexOf(r)>-1}function mark(r){UR.push(r);sv("gz_used",UR.slice(-50))}
+function activate(k,ms){var s=subs[me]||{};s[k]=Math.max(s[k]||0,Date.now())+(ms||CFG.plans[k].ms);subs[me]=s;sv("gz_subs",subs);
+  modal('<div class="c"><div style="font-size:54px">✅</div><h3>Payment successful</h3><p class="mu">'+CFG.plans[k].n+' activated.</p><button class="btn" onclick="closeM();go(\'dash\',\''+k+'\')">View my codes</button></div>')}
+
+// ===== DASHBOARD =====
+V.dash=function(k){
+  if(!me){go("login");return}
+  if(S.after){var a=S.after;S.after=null;setTimeout(function(){buy(a)},50)}
+  S.tab=k||S.tab||"daily";var s=subs[me]||{},u=users[me]||{n:""};
+  var h='<h3>Hi '+(u.n||'there').split(" ")[0]+' 👋</h3><div class="nav">';
+  for(var q in CFG.plans)h+='<button class="'+(q===S.tab?'on':'')+'" onclick="go(\'dash\',\''+q+'\')">'+q[0].toUpperCase()+q.slice(1)+'</button>';
+  h+='</div><div id="box"></div>';app.innerHTML=h;
+  function draw(){var exp=s[S.tab]||0,r=exp-Date.now(),b=$("box");if(!b)return;
+    if(r>0){var c=codes[S.tab]||[],x='<div class="card c"><div class="mu">Subscription expires in</div><div class="cd">'+left(r)+'</div></div>';
+      if(!c.length)x+='<div class="card c mu">No codes posted yet. Check back soon.</div>';
+      c.forEach(function(i){var rem=i.exp-Date.now();x+='<div class="card"><div class="row"><b>'+esc(i.title||"Booking code")+'</b><span class="mu">'+(rem>0?"Expires in "+left(rem):"Expired")+'</span></div><div class="code">'+esc(i.code)+'</div></div>'});
+      b.innerHTML=x}
+    else b.innerHTML='<div class="card c"><div style="font-size:40px">🔒</div><h3>'+CFG.plans[S.tab].n+' locked</h3><p class="mu">Subscribe to see the '+S.tab+' booking codes.</p><button class="btn" onclick="buy(\''+S.tab+'\')">Subscribe – '+fmt(CFG.plans[S.tab].p)+'</button></div>'}
+  draw();tick=setInterval(draw,1e3)};
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+// ===== ADMIN =====
+V.admin=function(){
+  if(!S.adm){app.innerHTML='<h2>Admin</h2><div class="card"><label>Admin password</label><input id="ap" type="password"><div class="err" id="e"></div><button class="btn" onclick="if($(\'ap\').value===CFG.adminPass){S.adm=1;go(\'admin\')}else $(\'e\').textContent=\'Wrong password\'">Enter</button></div>';return}
+  S.at=S.at||"daily";
+  var h='<h2>Admin dashboard</h2><div class="nav">';
+  for(var q in CFG.plans)h+='<button class="'+(q===S.at?'on':'')+'" onclick="S.at=\''+q+'\';V.admin()">'+q[0].toUpperCase()+q.slice(1)+'</button>';
+  h+='</div><div class="card"><label>Title (e.g. Sure 3 odds)</label><input id="ti"><label>Booking code(s)</label><textarea id="cd" rows="3"></textarea><label>Visible for (hours)</label><input id="hh" type="number" value="'+(S.at==="daily"?24:S.at==="weekly"?168:720)+'"><button class="btn" onclick="post()">Post '+S.at+' code</button></div><h3>Posted ('+S.at+')</h3>';
+  (codes[S.at]||[]).forEach(function(i,n){h+='<div class="card"><div class="row"><b>'+esc(i.title||"Code")+'</b><button class="btn s o" onclick="del('+n+')">Delete</button></div><div class="code">'+esc(i.code)+'</div></div>'});
+  h+='<p class="mu">Members: '+Object.keys(users).length+'</p><button class="btn o" onclick="S.adm=0;go(\'home\')">Exit admin</button>';
+  app.innerHTML=h};
+function post(){var c=$("cd").value.trim();if(!c)return;var hrs=+$("hh").value||24;
+  (codes[S.at]=codes[S.at]||[]).unshift({title:$("ti").value.trim(),code:c,exp:Date.now()+hrs*36e5});sv("gz_codes",codes);V.admin()}
+function del(n){codes[S.at].splice(n,1);sv("gz_codes",codes);V.admin()}
+go(me?"dash":"home");
+</script></body></html>
