@@ -22,8 +22,13 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         amount: body.amount,
         currency: body.currency || "XAF",
-        email: body.email || "customer@greenzoneslip.com",
-        description: body.description || "Greenzoneslip Payment"
+        customer: {
+          email: body.email || "customer@greenzoneslip.com",
+          name: body.name || "Customer"
+        },
+        description: body.description || "Greenzoneslip Payment",
+        reference: "GZ-" + Date.now(),
+        callback: "https://greenzoneslip.com"
       })
     });
     const data = await res.json();
